@@ -10,14 +10,21 @@ export function mockTacticalAnalysis(
   let base = run.hit ? 88 : 42;
   base += scenario.defenseMode === "builder" ? 8 : scenario.defenseMode === "parameters" ? 4 : -6;
   base -= Math.min(15, mach);
+  const maneuver = scenario.maneuverIntensity ?? 0;
+  base -= maneuver / 22;
+  if (run.path.kind === "shifted") base -= 4;
   const interceptionProbability = Math.max(5, Math.min(99, Math.round(base * 10) / 10));
 
   const riskLevel: TacticalAnalysis["riskLevel"] =
     mach > 8 ? "CRITICAL" : mach > 5 ? "HIGH" : mach > 3 ? "MEDIUM" : "LOW";
 
+  const shiftNote =
+    run.path.kind === "shifted"
+      ? ` Mid-course projective shift at ~${run.path.splitTimeSec.toFixed(1)}s complicates lead pursuit.`
+      : "";
   const briefing = run.hit
-    ? `Intercept geometry closed successfully. Minimum separation ${run.minDistance.toFixed(2)} units. Mach ${mach.toFixed(1)} threat channel suppressed.`
-    : `Closest approach ${run.minDistance.toFixed(2)} units — outside kill radius. Recommend adjusting defense config or engagement timing for Mach ${mach.toFixed(1)} vector.`;
+    ? `Intercept geometry closed successfully. Minimum separation ${run.minDistance.toFixed(2)} units. Mach ${mach.toFixed(1)} threat channel suppressed.${shiftNote}`
+    : `Closest approach ${run.minDistance.toFixed(2)} units — outside kill radius. Recommend adjusting defense config or engagement timing for Mach ${mach.toFixed(1)} vector.${shiftNote}`;
 
   const recommendations = run.hit
     ? [

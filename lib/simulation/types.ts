@@ -9,6 +9,10 @@ export interface ScenarioParams {
   launchAngle: number;
   targetDistance: number;
   defenseMode: DefenseMode;
+  /** 0 = smooth ballistic arc; higher = stronger mid-course lateral “projective shift” second leg. */
+  maneuverIntensity: number;
+  /** When the shift happens along the nominal path (0 = early … 100 = late). */
+  maneuverTiming: number;
 }
 
 export interface TrajectoryDef {
@@ -17,6 +21,17 @@ export interface TrajectoryDef {
   p2: Vec3;
   durationSec: number;
 }
+
+/** Missile path: single arc or two-segment Bezier after a mid-course direction change. */
+export type MissilePath =
+  | { kind: "ballistic"; seg: TrajectoryDef }
+  | {
+      kind: "shifted";
+      first: TrajectoryDef;
+      second: TrajectoryDef;
+      splitTimeSec: number;
+      totalDurationSec: number;
+    };
 
 export interface SimSnapshot {
   t: number;
@@ -32,7 +47,7 @@ export interface RunSummary {
   minDistance: number;
   totalDurationSec: number;
   missileDurationSec: number;
-  trajectory: TrajectoryDef;
+  path: MissilePath;
   interceptorStart: Vec3;
   interceptorSpeed: number;
   logs: string[];

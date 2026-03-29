@@ -7,6 +7,7 @@ import gsap from "gsap";
 import { useSimulatorStore, exportScenarioJson, importScenarioFromJson } from "@/lib/store/simulator-store";
 import { runSimulationOffline } from "@/lib/simulation/engine";
 import { fetchTacticalAnalysis } from "@/lib/ai/client";
+import { WAR_SCENARIO_TEMPLATES, getWarTemplate } from "@/lib/simulation/war-templates";
 import type { CameraMode, DefenseMode } from "@/lib/simulation/types";
 
 const SimulationCanvas = dynamic(() => import("./SimulationCanvas"), { ssr: false });
@@ -21,9 +22,12 @@ function distanceLabel(dist: number) {
   return `${km.toLocaleString()} KM`;
 }
 
+const PLAYBACK_STEP_SEC = 0.75;
+
 export default function SimulatorApp() {
   const fileRef = useRef<HTMLInputElement>(null);
   const shellRef = useRef<HTMLElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const [advancedBuilder, setAdvancedBuilder] = useState(false);
 
   const scenario = useSimulatorStore((s) => s.scenario);
@@ -31,6 +35,10 @@ export default function SimulatorApp() {
   const setLaunchAngle = useSimulatorStore((s) => s.setLaunchAngle);
   const setTargetDistance = useSimulatorStore((s) => s.setTargetDistance);
   const setDefenseMode = useSimulatorStore((s) => s.setDefenseMode);
+  const setManeuverIntensity = useSimulatorStore((s) => s.setManeuverIntensity);
+  const setManeuverTiming = useSimulatorStore((s) => s.setManeuverTiming);
+  const loadWarTemplate = useSimulatorStore((s) => s.loadWarTemplate);
+  const warTemplateId = useSimulatorStore((s) => s.warTemplateId);
   const setCameraMode = useSimulatorStore((s) => s.setCameraMode);
   const cameraMode = useSimulatorStore((s) => s.cameraMode);
   const beginRun = useSimulatorStore((s) => s.beginRun);
@@ -119,6 +127,67 @@ export default function SimulatorApp() {
   }, [lastRun, playback, setPlayback, setSimTime]);
 
   const scrubPreview = lastRun ? simTime / Math.max(lastRun.totalDurationSec, 0.001) : 0;
+
+  const formatMissionClock = useCallback((t: number) => {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    const cs = Math.floor((t % 1) * 100);
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+  }, []);
+
+  const seekTimeline = useCallback(
+    (clientX: number) => {
+      if (!lastRun || !timelineRef.current) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      setSimTime(ratio * lastRun.totalDurationSec);
+      setPlayback("paused");
+    },
+    [lastRun, setPlayback, setSimTime]
+  );
+
+  const onTimelineMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!lastRun || e.button !== 0) return;
+      e.preventDefault();
+      seekTimeline(e.clientX);
+      const onMove = (ev: MouseEvent) => seekTimeline(ev.clientX);
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [lastRun, seekTimeline]
+  );
+
+  const stepBackward = useCallback(
+    (e: React.MouseEvent) => {
+      if (!lastRun) return;
+      if (e.shiftKey) {
+        setSimTime(0);
+      } else {
+        setSimTime(Math.max(0, simTime - PLAYBACK_STEP_SEC));
+      }
+      setPlayback("paused");
+    },
+    [lastRun, setPlayback, setSimTime, simTime]
+  );
+
+  const stepForward = useCallback(
+    (e: React.MouseEvent) => {
+      if (!lastRun) return;
+      const end = lastRun.totalDurationSec;
+      if (e.shiftKey) {
+        setSimTime(end);
+      } else {
+        setSimTime(Math.min(end, simTime + PLAYBACK_STEP_SEC));
+      }
+      setPlayback("paused");
+    },
+    [lastRun, setPlayback, setSimTime, simTime]
+  );
 
   return (
     <>
@@ -256,6 +325,40 @@ export default function SimulatorApp() {
                       onChange={(e) => setTargetDistance(Number(e.target.value))}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
+                      <span>[INP.05] PROJECTIVE_SHIFT</span>
+                      <span className="text-primary">{scenario.maneuverIntensity}%</span>
+                    </div>
+                    <input
+                      className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={scenario.maneuverIntensity}
+                      onChange={(e) => setManeuverIntensity(Number(e.target.value))}
+                    />
+                    <p className="font-label text-[9px] text-on-surface-variant opacity-80">
+                      Mid-course direction change (0 = ballistic).
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
+                      <span>[INP.06] SHIFT_TIMING</span>
+                      <span className="text-primary">
+                        {scenario.maneuverIntensity < 8 ? "N/A" : `${scenario.maneuverTiming}%`}
+                      </span>
+                    </div>
+                    <input
+                      className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={scenario.maneuverTiming}
+                      onChange={(e) => setManeuverTiming(Number(e.target.value))}
+                      disabled={scenario.maneuverIntensity < 8}
+                    />
+                  </div>
                   <div className="space-y-3 pt-4">
                     <span className="font-label text-[10px] uppercase text-on-surface-variant">
                       [INP.04] DEFENSE_CONFIG
@@ -283,6 +386,32 @@ export default function SimulatorApp() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div className="space-y-2 border-t border-white/10 pt-4">
+                    <span className="font-label text-[10px] uppercase text-on-surface-variant">
+                      WAR_TEMPLATES // EDU
+                    </span>
+                    <div className="flex flex-col gap-1.5">
+                      {WAR_SCENARIO_TEMPLATES.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => loadWarTemplate(t.id)}
+                          className={`truncate px-2 py-1.5 text-left font-label text-[9px] uppercase ${
+                            warTemplateId === t.id
+                              ? "bg-secondary/15 text-secondary"
+                              : "text-on-surface-variant hover:bg-white/5 hover:text-on-surface"
+                          }`}
+                        >
+                          {t.title}
+                        </button>
+                      ))}
+                    </div>
+                    {warTemplateId && getWarTemplate(warTemplateId) && (
+                      <p className="border-l-2 border-secondary pl-2 font-body text-[9px] leading-relaxed text-on-surface-variant">
+                        {getWarTemplate(warTemplateId)!.failureAnalysis}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
@@ -326,10 +455,16 @@ export default function SimulatorApp() {
               launchAngle={scenario.launchAngle}
               targetDistance={scenario.targetDistance}
               defenseMode={scenario.defenseMode}
+              maneuverIntensity={scenario.maneuverIntensity}
+              maneuverTiming={scenario.maneuverTiming}
+              warTemplateId={warTemplateId}
               setMissileSpeed={setMissileSpeed}
               setLaunchAngle={setLaunchAngle}
               setTargetDistance={setTargetDistance}
               setDefenseMode={setDefenseMode}
+              setManeuverIntensity={setManeuverIntensity}
+              setManeuverTiming={setManeuverTiming}
+              loadWarTemplate={loadWarTemplate}
               machLabel={machLabel}
               distanceLabel={distanceLabel}
               onRun={onInitiate}
@@ -488,13 +623,11 @@ export default function SimulatorApp() {
           <div className="mr-8 flex items-center gap-4 border-r border-white/10 pr-8">
             <button
               type="button"
-              className="text-on-surface-variant transition-colors hover:text-primary"
-              aria-label="Rewind"
-              onClick={() => {
-                if (!lastRun) return;
-                setSimTime(0);
-                setPlayback("running");
-              }}
+              className="text-on-surface-variant transition-colors hover:text-primary disabled:opacity-30"
+              aria-label="Step back in time; Shift+click to jump to start"
+              title="Back 0.75s · Shift+click: start"
+              disabled={!lastRun}
+              onClick={stepBackward}
             >
               <span className="material-symbols-outlined">fast_rewind</span>
             </button>
@@ -509,7 +642,14 @@ export default function SimulatorApp() {
                 {playback === "running" ? "pause" : "play_arrow"}
               </span>
             </button>
-            <button type="button" className="text-on-surface-variant hover:text-primary" aria-label="Forward">
+            <button
+              type="button"
+              className="text-on-surface-variant transition-colors hover:text-primary disabled:opacity-30"
+              aria-label="Step forward in time; Shift+click to jump to end"
+              title="Forward 0.75s · Shift+click: end"
+              disabled={!lastRun}
+              onClick={stepForward}
+            >
               <span className="material-symbols-outlined">fast_forward</span>
             </button>
           </div>
@@ -517,13 +657,16 @@ export default function SimulatorApp() {
             <div className="flex justify-between font-label text-[9px] uppercase tracking-tighter text-on-surface-variant">
               <span>00:00:00:00</span>
               <span className="text-primary">MISSION_CLOCK // LIVE</span>
-              <span>
-                {lastRun
-                  ? `${String(Math.floor(simTime / 60)).padStart(2, "0")}:${String(Math.floor(simTime % 60)).padStart(2, "0")}`
-                  : "00:00:00"}
+              <span className="font-mono tabular-nums">
+                {lastRun ? formatMissionClock(simTime) : "00:00.00"}
               </span>
             </div>
-            <div className="relative flex h-8 w-full items-center">
+            <div
+              ref={timelineRef}
+              className={`relative flex h-9 w-full items-center py-1 ${lastRun ? "cursor-pointer" : "cursor-default"}`}
+              onMouseDown={onTimelineMouseDown}
+              role="presentation"
+            >
               <div className="pointer-events-none absolute inset-0 flex items-center justify-around opacity-30">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div
@@ -532,10 +675,10 @@ export default function SimulatorApp() {
                   />
                 ))}
               </div>
-              <div className="relative h-0.5 w-full bg-surface-container-highest">
+              <div className="relative h-1 w-full bg-surface-container-highest">
                 <div
-                  className="absolute top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center bg-primary shadow-[0_0_10px_#2ae500]"
-                  style={{ left: `${Math.min(100, scrubPreview * 100)}%`, transform: "translate(-50%, -50%)" }}
+                  className="absolute top-1/2 z-10 flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center bg-primary shadow-[0_0_10px_#2ae500]"
+                  style={{ left: `${Math.min(100, Math.max(0, scrubPreview * 100))}%` }}
                 >
                   <div className="h-full w-px bg-white/50" />
                 </div>

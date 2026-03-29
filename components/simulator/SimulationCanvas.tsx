@@ -4,17 +4,19 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { replaySimState } from "@/lib/simulation/engine";
 import { useSimulatorStore } from "@/lib/store/simulator-store";
 import {
   addScaled,
-  bezierTangent,
   buildTrajectory,
   len,
-  missilePosition,
+  missileAt,
+  missileTangentAt,
   normalize,
+  pathTotalDuration,
   sub,
 } from "@/lib/simulation/trajectory";
-import type { TrajectoryDef, Vec3 } from "@/lib/simulation/types";
+import type { MissilePath, Vec3 } from "@/lib/simulation/types";
 
 const HIT_RADIUS = 3.2;
 
@@ -98,6 +100,7 @@ function SceneBody() {
   const explosionRef = useRef<THREE.Group>(null);
   const interceptorPos = useRef<Vec3 | null>(null);
   const visualHit = useRef(false);
+  const prevPlayback = useRef<string | null>(null);
 
   const cameraMode = useSimulatorStore((s) => s.cameraMode);
   const playback = useSimulatorStore((s) => s.playback);
@@ -107,11 +110,9 @@ function SceneBody() {
   const setSimTime = useSimulatorStore((s) => s.setSimTime);
   const setPlayback = useSimulatorStore((s) => s.setPlayback);
 
-  const preview = useMemo(
-    () => buildTrajectory(scenario),
-    [scenario]
-  );
-  const traj: TrajectoryDef = lastRun?.trajectory ?? preview.trajectory;
+  const preview = useMemo(() => buildTrajectory(scenario), [scenario]);
+  const path: MissilePath = lastRun?.path ?? preview.path;
+  const flightEnd = useMemo(() => pathTotalDuration(path), [path]);
   const run = lastRun;
 
   useFrame((_, delta) => {
@@ -120,9 +121,9 @@ function SceneBody() {
     const dt = Math.min(delta, 0.05);
 
     if (playback === "idle" && !run) {
-      const m = missilePosition(traj, 0);
+      const m = missileAt(path, 0);
       missileRef.current.position.copy(vec3(m));
-      const tan = bezierTangent(traj.p0, traj.p1, traj.p2, 0.01);
+      const tan = missileTangentAt(path, 0);
       missileRef.current.quaternion.setFromUnitVectors(
         new THREE.Vector3(0, 1, 0),
         vec3(tan)
@@ -130,42 +131,44 @@ function SceneBody() {
       interceptorRef.current.position.copy(vec3(preview.interceptorStart));
       visualHit.current = false;
       if (explosionRef.current) explosionRef.current.visible = false;
+      prevPlayback.current = playback;
       return;
     }
 
     if ((playback === "paused" || playback === "ended") && run) {
       const tEnd = Math.min(simTime, run.totalDurationSec);
-      const m = missilePosition(traj, Math.min(tEnd, traj.durationSec));
-      missileRef.current.position.copy(vec3(m));
-      const u = Math.min(1, tEnd / traj.durationSec);
-      const tan = bezierTangent(traj.p0, traj.p1, traj.p2, Math.min(0.99, u + 0.02));
+      const s = replaySimState(run, tEnd);
+      missileRef.current.position.copy(vec3(s.missile));
+      const tan = missileTangentAt(run.path, Math.min(tEnd, flightEnd));
       missileRef.current.quaternion.setFromUnitVectors(
         new THREE.Vector3(0, 1, 0),
         vec3(tan)
       );
-      if (interceptorPos.current) {
-        interceptorRef.current.position.copy(vec3(interceptorPos.current));
-      }
+      interceptorRef.current.position.copy(vec3(s.interceptor));
       if (explosionRef.current) {
-        explosionRef.current.visible = !!(run.hit && tEnd >= (run.interceptTimeSec ?? 0) - 0.01);
-        if (explosionRef.current.visible && run.interceptTimeSec != null) {
-          const hitP = missilePosition(traj, run.interceptTimeSec);
-          explosionRef.current.position.copy(vec3(hitP));
+        explosionRef.current.visible = s.explosionVisible;
+        if (s.explosionVisible && s.explosionPos) {
+          explosionRef.current.position.copy(vec3(s.explosionPos));
         }
       }
+      prevPlayback.current = playback;
       return;
     }
 
     if (playback === "running" && run) {
-      if (simTime < dt * 2) {
+      if (prevPlayback.current === "paused") {
+        const s = replaySimState(run, simTime);
+        interceptorPos.current = { ...s.interceptor };
+        visualHit.current = s.visualHit;
+      } else if (simTime < dt * 2) {
         interceptorPos.current = { ...run.interceptorStart };
         visualHit.current = false;
       }
       const t = simTime + dt;
-      const m = missilePosition(traj, Math.min(t, traj.durationSec));
+      const mt = Math.min(t, flightEnd);
+      const m = missileAt(run.path, mt);
       missileRef.current.position.copy(vec3(m));
-      const u = Math.min(1, t / traj.durationSec);
-      const tan = bezierTangent(traj.p0, traj.p1, traj.p2, Math.min(0.99, u + 0.02));
+      const tan = missileTangentAt(run.path, mt);
       missileRef.current.quaternion.setFromUnitVectors(
         new THREE.Vector3(0, 1, 0),
         vec3(tan)
@@ -194,8 +197,11 @@ function SceneBody() {
         setPlayback("ended");
       }
       setSimTime(Math.min(t, run.totalDurationSec));
+      prevPlayback.current = playback;
       return;
     }
+
+    prevPlayback.current = playback;
   });
 
   const showScene = true;

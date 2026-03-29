@@ -21,7 +21,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Features
 
-- **SCENARIO_BUILDER**: sliders for speed, launch angle, target distance; defense mode; **INITIATE_DEPLOYMENT** runs the offline intercept model and starts the 3D playback.
+- **SCENARIO_BUILDER**: sliders for speed, launch angle, target distance; **mid-course maneuver** (projective shift) and timing; defense mode; **war-style templates** with open-literature “why intercepts fail” notes (educational only). **INITIATE_DEPLOYMENT** / **Run simulation** runs the model and starts 3D playback.
 - **3D viewport**: missile + interceptor + intercept burst; **Orbital_View** / **CAD_Grid_View** / **Telemetry_Lock** camera modes.
 - **AI_TACTICAL_ASSISTANT**: after a run ends, the app calls `POST /api/tactical`. With `GROQ_API_KEY`, Groq returns structured JSON; with `GEMINI_API_KEY`, Gemini may append a short markdown addendum to the briefing. If Groq is unset, the route uses a **deterministic mock** (fully usable offline).
 - **Export / import** scenario JSON; **Reset simulation** clears the last run and AI panel.

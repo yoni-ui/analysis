@@ -8,6 +8,8 @@ export function buildTacticalPayload(scenario: ScenarioParams, run: RunSummary) 
       launchAngleDeg: scenario.launchAngle,
       targetDistanceSlider: scenario.targetDistance,
       defenseMode: scenario.defenseMode,
+      maneuverIntensity: scenario.maneuverIntensity,
+      maneuverTiming: scenario.maneuverTiming,
     },
     run: {
       hit: run.hit,
@@ -15,6 +17,9 @@ export function buildTacticalPayload(scenario: ScenarioParams, run: RunSummary) 
       minDistance: run.minDistance,
       totalDurationSec: run.totalDurationSec,
       missileDurationSec: run.missileDurationSec,
+      pathKind: run.path.kind,
+      midcourseShiftSec:
+        run.path.kind === "shifted" ? run.path.splitTimeSec : null,
     },
   };
 }
