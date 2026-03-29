@@ -63,10 +63,10 @@ export const useSimulatorStore = create<SimulatorState>()(
       simTime: 0,
       lastRun: null,
       telemetryLines: [
-        { time: formatClock(new Date()), text: "Pinging Server Node_04... OK", tone: "primary" },
-        { time: formatClock(new Date()), text: "Awaiting uplink authorization...", tone: "primary" },
-        { time: formatClock(new Date()), text: "Scanning Sub-sector 12-A...", tone: "secondary" },
-        { time: formatClock(new Date()), text: "Signature Detected: MIRV_CLASS_7", tone: "error" },
+        { time: "04:12:22", text: "Pinging Server Node_04... OK", tone: "primary" },
+        { time: "04:12:24", text: "Awaiting uplink authorization...", tone: "primary" },
+        { time: "04:12:25", text: "Scanning Sub-sector 12-A...", tone: "secondary" },
+        { time: "04:12:28", text: "Signature Detected: MIRV_CLASS_7", tone: "error" },
       ],
       ai: { analysis: null, loading: false, error: null },
 

@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import ScenarioBuilderSimple from "./ScenarioBuilderSimple";
 import gsap from "gsap";
 import { useSimulatorStore, exportScenarioJson, importScenarioFromJson } from "@/lib/store/simulator-store";
 import { runSimulationOffline } from "@/lib/simulation/engine";
@@ -23,6 +24,7 @@ function distanceLabel(dist: number) {
 export default function SimulatorApp() {
   const fileRef = useRef<HTMLInputElement>(null);
   const shellRef = useRef<HTMLElement>(null);
+  const [advancedBuilder, setAdvancedBuilder] = useState(false);
 
   const scenario = useSimulatorStore((s) => s.scenario);
   const setMissileSpeed = useSimulatorStore((s) => s.setMissileSpeed);
@@ -177,126 +179,165 @@ export default function SimulatorApp() {
           data-animate-panel
           className="glass-panel fixed left-0 top-16 z-40 flex h-[calc(100vh-64px)] w-72 flex-col border-r border-white/5 bg-slate-900/40 transition-all duration-100 dark:bg-[#111318]/80"
         >
-          <div className="border-b border-white/5 p-6">
-            <div className="mb-1 flex items-start justify-between">
+          <div className="flex items-start justify-between gap-2 border-b border-white/5 p-4">
+            <div className="min-w-0">
               <h2 className="font-headline text-lg font-bold tracking-tighter text-[#2ae500]">
-                SCENARIO_BUILDER
+                {advancedBuilder ? "SCENARIO_BUILDER" : "Scenario builder"}
               </h2>
-              <span className="font-label text-[10px] text-on-surface-variant opacity-50">
-                SEC_04 // 22.4
-              </span>
+              {advancedBuilder ? (
+                <>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="font-label text-[10px] text-on-surface-variant opacity-50">
+                      SEC_04 // 22.4
+                    </span>
+                  </div>
+                  <p className="mt-0.5 font-label text-[10px] uppercase tracking-widest text-secondary">
+                    COMMANDER_VANGUARD // ALPHA_SITE
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 font-body text-[10px] text-on-surface-variant">
+                  Simple controls — switch to technical labels anytime.
+                </p>
+              )}
             </div>
-            <p className="font-label text-[10px] uppercase tracking-widest text-secondary">
-              COMMANDER_VANGUARD // ALPHA_SITE
-            </p>
-          </div>
-          <div className="flex-1 space-y-8 overflow-y-auto p-6">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
-                  <span>[INP.01] MISSILE_SPEED</span>
-                  <span className="text-primary">{machLabel(scenario.missileSpeed)}</span>
-                </div>
-                <input
-                  className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={scenario.missileSpeed}
-                  onChange={(e) => setMissileSpeed(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
-                  <span>[INP.02] LAUNCH_ANGLE</span>
-                  <span className="text-primary">{scenario.launchAngle.toFixed(1)}°</span>
-                </div>
-                <input
-                  className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
-                  type="range"
-                  min={5}
-                  max={85}
-                  value={scenario.launchAngle}
-                  onChange={(e) => setLaunchAngle(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
-                  <span>[INP.03] TARGET_DISTANCE</span>
-                  <span className="text-primary">{distanceLabel(scenario.targetDistance)}</span>
-                </div>
-                <input
-                  className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={scenario.targetDistance}
-                  onChange={(e) => setTargetDistance(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-3 pt-4">
-                <span className="font-label text-[10px] uppercase text-on-surface-variant">
-                  [INP.04] DEFENSE_CONFIG
-                </span>
-                <div className="grid grid-cols-1 gap-2">
-                  {(
-                    [
-                      ["builder", "architecture", "BUILDER_MODE"],
-                      ["parameters", "tune", "PARAMETERS"],
-                      ["staging", "vibration", "STAGING"],
-                    ] as const
-                  ).map(([mode, icon, label]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setDefenseMode(mode as DefenseMode)}
-                      className={`flex items-center gap-3 px-4 py-3 text-left font-label text-[10px] transition-transform hover:translate-x-1 ${
-                        scenario.defenseMode === mode
-                          ? "border-l-2 border-secondary bg-secondary/10 text-secondary"
-                          : "text-slate-500 hover:bg-white/5 hover:text-slate-200"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-sm">{icon}</span>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
-              <button
-                type="button"
-                onClick={onExport}
-                className="font-label text-[10px] uppercase text-on-surface-variant hover:text-primary"
-              >
-                Export scenario JSON
-              </button>
-              <button
-                type="button"
-                onClick={onImportPick}
-                className="font-label text-[10px] uppercase text-on-surface-variant hover:text-secondary"
-              >
-                Import scenario JSON
-              </button>
-              <button
-                type="button"
-                onClick={resetRun}
-                className="font-label text-[10px] uppercase text-on-surface-variant hover:text-error"
-              >
-                Reset simulation
-              </button>
-            </div>
-          </div>
-          <div className="p-6">
             <button
               type="button"
-              onClick={onInitiate}
-              className="glitch-effect flex w-full items-center justify-center gap-3 bg-primary py-4 font-headline text-sm font-bold uppercase tracking-widest text-on-primary shadow-[0_0_20px_rgba(42,229,0,0.3)]"
+              onClick={() => setAdvancedBuilder((v) => !v)}
+              className="shrink-0 border border-white/10 bg-surface-container-high/50 px-2 py-1 font-label text-[9px] font-bold uppercase tracking-wide text-secondary hover:border-secondary/40 hover:text-on-surface"
             >
-              <span className="material-symbols-outlined">rocket_launch</span>
-              INITIATE_DEPLOYMENT
+              {advancedBuilder ? "Simple" : "Technical"}
             </button>
           </div>
+
+          {advancedBuilder ? (
+            <>
+              <div className="flex-1 space-y-8 overflow-y-auto p-6">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
+                      <span>[INP.01] MISSILE_SPEED</span>
+                      <span className="text-primary">{machLabel(scenario.missileSpeed)}</span>
+                    </div>
+                    <input
+                      className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={scenario.missileSpeed}
+                      onChange={(e) => setMissileSpeed(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
+                      <span>[INP.02] LAUNCH_ANGLE</span>
+                      <span className="text-primary">{scenario.launchAngle.toFixed(1)}°</span>
+                    </div>
+                    <input
+                      className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
+                      type="range"
+                      min={5}
+                      max={85}
+                      value={scenario.launchAngle}
+                      onChange={(e) => setLaunchAngle(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between font-label text-[10px] uppercase text-on-surface-variant">
+                      <span>[INP.03] TARGET_DISTANCE</span>
+                      <span className="text-primary">{distanceLabel(scenario.targetDistance)}</span>
+                    </div>
+                    <input
+                      className="h-1 w-full cursor-pointer appearance-none bg-surface-container-highest accent-primary"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={scenario.targetDistance}
+                      onChange={(e) => setTargetDistance(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-3 pt-4">
+                    <span className="font-label text-[10px] uppercase text-on-surface-variant">
+                      [INP.04] DEFENSE_CONFIG
+                    </span>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(
+                        [
+                          ["builder", "architecture", "BUILDER_MODE"],
+                          ["parameters", "tune", "PARAMETERS"],
+                          ["staging", "vibration", "STAGING"],
+                        ] as const
+                      ).map(([mode, icon, label]) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setDefenseMode(mode as DefenseMode)}
+                          className={`flex items-center gap-3 px-4 py-3 text-left font-label text-[10px] transition-transform hover:translate-x-1 ${
+                            scenario.defenseMode === mode
+                              ? "border-l-2 border-secondary bg-secondary/10 text-secondary"
+                              : "text-slate-500 hover:bg-white/5 hover:text-slate-200"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-sm">{icon}</span>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+                  <button
+                    type="button"
+                    onClick={onExport}
+                    className="font-label text-[10px] uppercase text-on-surface-variant hover:text-primary"
+                  >
+                    Export scenario JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onImportPick}
+                    className="font-label text-[10px] uppercase text-on-surface-variant hover:text-secondary"
+                  >
+                    Import scenario JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetRun}
+                    className="font-label text-[10px] uppercase text-on-surface-variant hover:text-error"
+                  >
+                    Reset simulation
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                <button
+                  type="button"
+                  onClick={onInitiate}
+                  className="glitch-effect flex w-full items-center justify-center gap-3 bg-primary py-4 font-headline text-sm font-bold uppercase tracking-widest text-on-primary shadow-[0_0_20px_rgba(42,229,0,0.3)]"
+                >
+                  <span className="material-symbols-outlined">rocket_launch</span>
+                  INITIATE_DEPLOYMENT
+                </button>
+              </div>
+            </>
+          ) : (
+            <ScenarioBuilderSimple
+              missileSpeed={scenario.missileSpeed}
+              launchAngle={scenario.launchAngle}
+              targetDistance={scenario.targetDistance}
+              defenseMode={scenario.defenseMode}
+              setMissileSpeed={setMissileSpeed}
+              setLaunchAngle={setLaunchAngle}
+              setTargetDistance={setTargetDistance}
+              setDefenseMode={setDefenseMode}
+              machLabel={machLabel}
+              distanceLabel={distanceLabel}
+              onRun={onInitiate}
+              onReset={resetRun}
+              onExport={onExport}
+              onImport={onImportPick}
+            />
+          )}
         </aside>
 
         <section
