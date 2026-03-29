@@ -1,0 +1,166 @@
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-headline: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-label: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-on-tertiary-fixed-variant: #93000c;
+  --color-outline-variant: #3f4852;
+  --color-on-secondary: #003354;
+  --color-background: #111318;
+  --color-tertiary-container: #ff6e63;
+  --color-surface: #111318;
+  --color-surface-container: #1e2024;
+  --color-on-secondary-fixed: #001d33;
+  --color-surface-bright: #37393e;
+  --color-inverse-primary: #106e00;
+  --color-on-background: #e2e2e8;
+  --color-tertiary-fixed: #ffdad6;
+  --color-secondary-fixed-dim: #98cbff;
+  --color-primary-container: #20b500;
+  --color-on-error-container: #ffdad6;
+  --color-on-tertiary: #690006;
+  --color-on-secondary-container: #003558;
+  --color-secondary-container: #00a2fd;
+  --color-on-primary-container: #053e00;
+  --color-surface-container-high: #282a2e;
+  --color-on-primary-fixed: #022100;
+  --color-error-container: #93000a;
+  --color-surface-variant: #333539;
+  --color-on-tertiary-container: #6f0007;
+  --color-primary-fixed: #79ff5b;
+  --color-on-error: #690005;
+  --color-on-primary-fixed-variant: #095300;
+  --color-on-surface: #e2e2e8;
+  --color-tertiary-fixed-dim: #ffb4ab;
+  --color-primary-fixed-dim: #2ae500;
+  --color-inverse-on-surface: #2f3035;
+  --color-surface-container-highest: #333539;
+  --color-surface-container-lowest: #0c0e12;
+  --color-secondary: #98cbff;
+  --color-surface-tint: #2ae500;
+  --color-on-primary: #053900;
+  --color-tertiary: #ffb4ab;
+  --color-surface-dim: #111318;
+  --color-error: #ffb4ab;
+  --color-inverse-surface: #e2e2e8;
+  --color-surface-container-low: #1a1c20;
+  --color-secondary-fixed: #cfe5ff;
+  --color-primary: #2ae500;
+  --color-on-secondary-fixed-variant: #004a77;
+  --color-on-surface-variant: #bec7d4;
+  --color-outline: #88919d;
+  --color-on-tertiary-fixed: #410002;
+
+  --radius-DEFAULT: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+}
+
+.glitch-effect:active {
+  filter: hue-rotate(90deg) brightness(1.5);
+  transform: scale(0.98);
+}
+
+.scanline {
+  background: linear-gradient(
+    to bottom,
+    transparent 50%,
+    rgba(42, 229, 0, 0.05) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+
+.glass-panel {
+  backdrop-filter: blur(12px);
+  background-color: rgba(17, 19, 24, 0.7);
+}
+
+.perspective-view {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.grid-3d {
+  background-image:
+    linear-gradient(rgba(42, 229, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 229, 0, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  transform: rotateX(60deg) translateY(-200px);
+  width: 200%;
+  height: 200%;
+  position: absolute;
+  left: -50%;
+  top: 0;
+}
+
+.axis-x {
+  border-bottom: 2px solid #ff4b4b;
+  width: 1000px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%);
+  opacity: 0.5;
+}
+
+.axis-y {
+  border-left: 2px solid #2ae500;
+  height: 1000px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+}
+
+@keyframes pulse-explosion {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.8;
+    filter: blur(4px);
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.explosion-ring {
+  animation: pulse-explosion 2s infinite ease-out;
+}
+
+.missile-3d {
+  width: 4px;
+  height: 24px;
+  background: #fff;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.missile-3d::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -2px;
+  width: 8px;
+  height: 8px;
+  background: #2ae500;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+.trail-glow {
+  filter: drop-shadow(0 0 8px #2ae500);
+}

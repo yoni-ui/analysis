@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TACTICAL_VANGUARD // AI_DEFENSE_SIM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "on-tertiary-fixed-variant": "#93000c",
+                "outline-variant": "#3f4852",
+                "on-secondary": "#003354",
+                "background": "#111318",
+                "tertiary-container": "#ff6e63",
+                "surface": "#111318",
+                "surface-container": "#1e2024",
+                "on-secondary-fixed": "#001d33",
+                "surface-bright": "#37393e",
+                "inverse-primary": "#106e00",
+                "on-background": "#e2e2e8",
+                "tertiary-fixed": "#ffdad6",
+                "secondary-fixed-dim": "#98cbff",
+                "primary-container": "#20b500",
+                "on-error-container": "#ffdad6",
+                "on-tertiary": "#690006",
+                "on-secondary-container": "#003558",
+                "secondary-container": "#00a2fd",
+                "on-primary-container": "#053e00",
+                "surface-container-high": "#282a2e",
+                "on-primary-fixed": "#022100",
+                "error-container": "#93000a",
+                "surface-variant": "#333539",
+                "on-tertiary-container": "#6f0007",
+                "primary-fixed": "#79ff5b",
+                "on-error": "#690005",
+                "on-primary-fixed-variant": "#095300",
+                "on-surface": "#e2e2e8",
+                "tertiary-fixed-dim": "#ffb4ab",
+                "primary-fixed-dim": "#2ae500",
+                "inverse-on-surface": "#2f3035",
+                "surface-container-highest": "#333539",
+                "surface-container-lowest": "#0c0e12",
+                "secondary": "#98cbff",
+                "surface-tint": "#2ae500",
+                "on-primary": "#053900",
+                "tertiary": "#ffb4ab",
+                "surface-dim": "#111318",
+                "error": "#ffb4ab",
+                "inverse-surface": "#e2e2e8",
+                "surface-container-low": "#1a1c20",
+                "secondary-fixed": "#cfe5ff",
+                "primary": "#2ae500",
+                "on-secondary-fixed-variant": "#004a77",
+                "on-surface-variant": "#bec7d4",
+                "outline": "#88919d",
+                "on-tertiary-fixed": "#410002"
+              },
+              fontFamily: {
+                "headline": ["Space Grotesk"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0rem", "lg": "0rem", "xl": "0rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glitch-effect:active {
+            filter: hue-rotate(90deg) brightness(1.5);
+            transform: scale(0.98);
+        }
+        .scanline {
+            background: linear-gradient(to bottom, transparent 50%, rgba(42, 229, 0, 0.05) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            background-color: rgba(17, 19, 24, 0.7);
+        }
+        .perspective-view {
+            perspective: 1200px;
+            transform-style: preserve-3d;
+        }
+        .grid-3d {
+            background-image: 
+                linear-gradient(rgba(42, 229, 0, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(42, 229, 0, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: rotateX(60deg) translateY(-200px);
+            width: 200%;
+            height: 200%;
+            position: absolute;
+            left: -50%;
+            top: 0;
+        }
+        .axis-x { border-bottom: 2px solid #ff4b4b; width: 1000px; position: absolute; left: 50%; top: 50%; transform: translateX(-50%); opacity: 0.5; }
+        .axis-y { border-left: 2px solid #2ae500; height: 1000px; position: absolute; left: 50%; top: 50%; transform: translateY(-50%); opacity: 0.5; }
+        .axis-z { border-left: 2px solid #00a2fd; height: 500px; position: absolute; left: 50%; top: 50%; transform: translateY(-50%) rotateY(90deg); opacity: 0.5; }
+        
+        @keyframes pulse-explosion {
+            0% { transform: scale(0); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; filter: blur(4px); }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .explosion-ring {
+            animation: pulse-explosion 2s infinite ease-out;
+        }
+        .missile-3d {
+            width: 4px;
+            height: 24px;
+            background: #fff;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+        .missile-3d::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -2px;
+            width: 8px;
+            height: 8px;
+            background: #2ae500;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        }
+        .trail-glow {
+            filter: drop-shadow(0 0 8px #2ae500);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body overflow-hidden selection:bg-primary selection:text-on-primary">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-slate-950 dark:bg-[#111318] border-b border-white/5 bg-opacity-90 backdrop-blur-xl shadow-[0_0_20px_rgba(42,229,0,0.1)] border-l-4 border-[#2ae500]">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tighter text-[#2ae500] dark:text-[#2ae500] font-headline uppercase">
+                TACTICAL_VANGUARD
+            </div>
+<nav class="hidden md:flex gap-6">
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm font-bold text-[#2ae500] border-b-2 border-[#2ae500] pb-1 transition-all duration-100" href="#">SIMULATION</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm font-bold text-slate-400 hover:text-[#98cbff] hover:bg-[#2ae500]/10 transition-all duration-100" href="#">CAMPAIGN_MODE</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm font-bold text-slate-400 hover:text-[#98cbff] hover:bg-[#2ae500]/10 transition-all duration-100" href="#">SCENARIOS</a>
+</nav>
+</div>
+<div class="flex items-center gap-4 text-[#2ae500]">
+<button class="p-2 hover:bg-[#2ae500]/10 transition-all duration-100"><span class="material-symbols-outlined">radar</span></button>
+<button class="p-2 hover:bg-[#2ae500]/10 transition-all duration-100"><span class="material-symbols-outlined">emergency_home</span></button>
+<button class="p-2 hover:bg-[#2ae500]/10 transition-all duration-100"><span class="material-symbols-outlined">settings</span></button>
+</div>
+</header>
+<!-- Main Container -->
+<main class="relative w-full h-screen pt-16 flex overflow-hidden">
+<!-- SideNavBar (Left Panel: Scenario Builder) -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-72 flex flex-col z-40 bg-slate-900/40 dark:bg-[#111318]/80 border-r border-white/5 transition-all duration-100 glass-panel">
+<div class="p-6 border-b border-white/5">
+<div class="flex justify-between items-start mb-1">
+<h2 class="font-headline text-lg font-bold text-[#2ae500] tracking-tighter">SCENARIO_BUILDER</h2>
+<span class="font-label text-[10px] text-on-surface-variant opacity-50">SEC_04 // 22.4</span>
+</div>
+<p class="font-label text-[10px] uppercase tracking-widest text-secondary">COMMANDER_VANGUARD // ALPHA_SITE</p>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-8">
+<!-- Control Sliders -->
+<div class="space-y-6">
+<div class="space-y-2">
+<div class="flex justify-between items-center font-label text-[10px] uppercase text-on-surface-variant">
+<span>[INP.01] MISSILE_SPEED</span>
+<span class="text-primary">MACH 4.2</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest appearance-none cursor-pointer accent-primary" type="range" value="70"/>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center font-label text-[10px] uppercase text-on-surface-variant">
+<span>[INP.02] LAUNCH_ANGLE</span>
+<span class="text-primary">45.0°</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest appearance-none cursor-pointer accent-primary" type="range" value="45"/>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center font-label text-[10px] uppercase text-on-surface-variant">
+<span>[INP.03] TARGET_DISTANCE</span>
+<span class="text-primary">1,240 KM</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest appearance-none cursor-pointer accent-primary" type="range" value="60"/>
+</div>
+<div class="space-y-3 pt-4">
+<span class="font-label text-[10px] uppercase text-on-surface-variant">[INP.04] DEFENSE_CONFIG</span>
+<div class="grid grid-cols-1 gap-2">
+<button class="bg-secondary/10 text-secondary border-l-2 border-secondary px-4 py-3 text-left font-label text-[10px] flex items-center gap-3 hover:translate-x-1 transition-transform">
+<span class="material-symbols-outlined text-sm">architecture</span> BUILDER_MODE
+                            </button>
+<button class="text-slate-500 px-4 py-3 text-left font-label text-[10px] flex items-center gap-3 hover:text-slate-200 hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined text-sm">tune</span> PARAMETERS
+                            </button>
+<button class="text-slate-500 px-4 py-3 text-left font-label text-[10px] flex items-center gap-3 hover:text-slate-200 hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined text-sm">vibration</span> STAGING
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<div class="p-6">
+<button class="w-full py-4 bg-primary text-on-primary font-headline font-bold uppercase tracking-widest text-sm glitch-effect shadow-[0_0_20px_rgba(42,229,0,0.3)] flex items-center justify-center gap-3">
+<span class="material-symbols-outlined">rocket_launch</span>
+                    INITIATE_DEPLOYMENT
+                </button>
+</div>
+</aside>
+<!-- Center Stage: 3D Viewport -->
+<section class="flex-1 relative bg-surface-container-lowest perspective-view overflow-hidden">
+<!-- Technical 3D Grid -->
+<div class="grid-3d"></div>
+<!-- Coordinate Axes -->
+<div class="axis-x"></div>
+<div class="axis-y"></div>
+<div class="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 pointer-events-none opacity-20">
+<div class="text-[10px] text-red-500 font-mono -ml-40 mt-2">X-AXIS // LATERAL</div>
+<div class="text-[10px] text-primary font-mono ml-4 -mt-40">Y-AXIS // ALTITUDE</div>
+</div>
+<div class="absolute inset-0 scanline opacity-20"></div>
+<!-- Simulation Elements (Absolute) -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+<svg class="w-full h-full" viewbox="0 0 1000 600">
+<!-- Red Threat Path (Incoming) -->
+<path class="opacity-60" d="M 200 100 Q 500 200 700 350" fill="none" stroke="#ffb4ab" stroke-dasharray="8 4" stroke-width="1.5"></path>
+<!-- Incoming Missile Model (SVG Representation for 3D Feel) -->
+<g transform="translate(200, 100) rotate(45)">
+<!-- Dynamic Trail -->
+<lineargradient id="threat-trail" x1="0%" x2="0%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#ff4b4b" stop-opacity="0"></stop>
+<stop offset="100%" stop-color="#ff4b4b" stop-opacity="0.5"></stop>
+</lineargradient>
+<path class="blur-sm" d="M -2 12 L 2 12 L 4 40 L -4 40 Z" fill="url(#threat-trail)"></path>
+<!-- Missile Body -->
+<path d="M 0 -22 L 3 -12 L 3 8 L 5 12 L -5 12 L -3 8 L -3 -12 Z" fill="#ffb4ab" stroke="#ff4b4b" stroke-width="0.5"></path>
+<path d="M 0 -22 L 1.5 -12 L 1.5 8 L 0 10 Z" fill="rgba(255,255,255,0.3)"></path>
+<!-- Core Glow -->
+<circle class="animate-pulse" fill="rgba(255,75,75,0.3)" r="8"></circle>
+</g>
+<!-- Green Interceptor Path (Outgoing) -->
+<path class="trail-glow" d="M 900 550 Q 850 450 700 350" fill="none" stroke="#2ae500" stroke-width="3"></path>
+<!-- Interceptor Missile Model -->
+<g transform="translate(900, 550) rotate(-140)">
+<!-- Propulsion Trail -->
+<lineargradient id="interceptor-trail" x1="0%" x2="0%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#2ae500" stop-opacity="0"></stop>
+<stop offset="100%" stop-color="#2ae500" stop-opacity="0.6"></stop>
+</lineargradient>
+<path class="blur-md" d="M -2 12 L 2 12 L 6 60 L -6 60 Z" fill="url(#interceptor-trail)"></path>
+<!-- Interceptor Body -->
+<path d="M 0 -24 L 4 -14 L 4 6 L 6 12 L -6 12 L -4 6 L -4 -14 Z" fill="#ffffff" stroke="#2ae500" stroke-width="1"></path>
+<path d="M 0 -24 L 2 -14 L 2 6 L 0 8 Z" fill="rgba(42,229,0,0.2)"></path>
+<!-- Navigation Lights -->
+<circle class="animate-ping" cy="6" fill="#2ae500" r="1"></circle>
+</g>
+<!-- Interception Point Explosion -->
+<g transform="translate(700, 350)">
+<!-- Explosion Rings -->
+<circle class="explosion-ring" fill="none" r="40" stroke="#2ae500" stroke-width="2"></circle>
+<circle class="explosion-ring" fill="none" r="30" stroke="#fff" stroke-width="1" style="animation-delay: 0.5s"></circle>
+<!-- Core Glow -->
+<radialgradient id="boom-grad">
+<stop offset="0%" stop-color="#fff"></stop>
+<stop offset="40%" stop-color="#2ae500"></stop>
+<stop offset="100%" stop-color="transparent"></stop>
+</radialgradient>
+<circle fill="url(#boom-grad)" opacity="0.9" r="25"></circle>
+<!-- UI Labels -->
+<text fill="#2ae500" font-family="Space Grotesk" font-size="10" font-weight="bold" x="35" y="-35">BOOM // IMPACT_CONFIRMED</text>
+<line stroke="#2ae500" stroke-dasharray="2 2" stroke-width="0.5" x1="0" x2="30" y1="0" y2="-30"></line>
+<text fill="#98cbff" font-family="Inter" font-size="8" x="35" y="-22">COORD: 700.22 / 350.11 / 102.4</text>
+</g>
+</svg>
+</div>
+<!-- Viewport Controls (Floating) -->
+<div class="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-px bg-surface-container-high/80 border border-white/10 glass-panel z-20">
+<button class="px-4 py-2 text-[10px] font-headline font-bold text-slate-400 hover:text-white transition-colors uppercase border-r border-white/10">Orbital_View</button>
+<button class="px-4 py-2 text-[10px] font-headline font-bold text-primary hover:bg-primary/10 transition-colors uppercase border-r border-white/10">CAD_Grid_View</button>
+<button class="px-4 py-2 text-[10px] font-headline font-bold text-slate-400 hover:text-white transition-colors uppercase">Telemetry_Lock</button>
+</div>
+<!-- Viewport Status Overlays -->
+<div class="absolute top-6 left-6 font-mono text-[9px] text-primary/60 uppercase tracking-widest z-20">
+    RENDER_ENGINE: AEGIS_V4.2<br/>
+    DRAWCALLS: 1,244<br/>
+    SHADERS: PBR_TACTICAL_GLOW
+</div>
+<!-- Camera Gizmo -->
+<div class="absolute bottom-32 right-8 flex flex-col gap-2 z-20">
+<button class="w-10 h-10 bg-surface-container-high/80 border border-white/10 flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">zoom_in</span>
+</button>
+<button class="w-10 h-10 bg-surface-container-high/80 border border-white/10 flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">zoom_out</span>
+</button>
+<button class="w-10 h-10 bg-surface-container-high/80 border border-white/10 flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">videocam</span>
+</button>
+</div>
+</section>
+<!-- Right Panel: AI Analytics -->
+<aside class="fixed right-0 top-16 h-[calc(100vh-64px)] w-80 flex flex-col z-40 bg-slate-900/40 dark:bg-[#111318]/80 border-l border-white/5 glass-panel">
+<div class="p-6 border-b border-white/5">
+<div class="flex justify-between items-start mb-1">
+<h2 class="font-headline text-lg font-bold text-secondary tracking-tighter">AI_TACTICAL_ASSISTANT</h2>
+<span class="font-label text-[10px] text-on-surface-variant opacity-50">SYNC_ACTIVE</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<!-- Probability Card -->
+<div class="bg-surface-container-low/50 p-4 border-l-2 border-primary">
+<div class="flex justify-between items-center mb-4">
+<span class="font-label text-[10px] text-on-surface-variant uppercase">Interception_Success</span>
+<span class="font-headline text-xl text-primary font-bold">94.2%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 94%"></div>
+</div>
+</div>
+<!-- Threat Level -->
+<div class="bg-surface-container-low/50 p-4 border-l-2 border-error">
+<div class="flex justify-between items-center">
+<span class="font-label text-[10px] text-on-surface-variant uppercase">Current_Threat_Level</span>
+<span class="px-2 py-0.5 bg-error/10 text-error font-headline font-bold text-xs">CRITICAL</span>
+</div>
+<p class="mt-3 font-body text-[11px] text-on-surface-variant leading-relaxed">
+                        Multiple thermal signatures detected in Sector 7G. Ballistic trajectory confirmed. Recommending immediate interceptor deployment from Mobile Unit 4.
+                    </p>
+</div>
+<!-- Intelligence Briefing -->
+<div class="space-y-4">
+<span class="font-label text-[10px] uppercase text-secondary tracking-widest font-bold">Recommended_Defense</span>
+<div class="space-y-3">
+<div class="flex items-start gap-3 p-3 bg-surface-container-highest/30 border border-white/5">
+<span class="material-symbols-outlined text-secondary text-lg">my_location</span>
+<div>
+<h4 class="text-[11px] font-bold text-white uppercase">Primary Battery Pos A1</h4>
+<p class="text-[10px] text-on-surface-variant">Optimal firing window in T-minus 12s.</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 bg-surface-container-highest/30 border border-white/5">
+<span class="material-symbols-outlined text-secondary text-lg">shield</span>
+<div>
+<h4 class="text-[11px] font-bold text-white uppercase">Kinetic Shielding</h4>
+<p class="text-[10px] text-on-surface-variant">Coverage overlap identified at coord (44.2, -12).</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Telemetry Feed -->
+<div class="pt-4 border-t border-white/5">
+<span class="font-label text-[10px] uppercase text-on-surface-variant opacity-50 block mb-4">Live_Telemetry_Stream</span>
+<div class="space-y-2 font-mono text-[9px] text-on-surface-variant">
+<div class="flex justify-between">
+<span class="text-primary">[04:12:22]</span>
+<span>Pinging Server Node_04... OK</span>
+</div>
+<div class="flex justify-between">
+<span class="text-primary">[04:12:24]</span>
+<span>Awaiting uplink authorization...</span>
+</div>
+<div class="flex justify-between">
+<span class="text-secondary">[04:12:25]</span>
+<span>Scanning Sub-sector 12-A...</span>
+</div>
+<div class="flex justify-between">
+<span class="text-error">[04:12:28]</span>
+<span>Signature Detected: MIRV_CLASS_7</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Bottom Panel: Timeline / Event Log -->
+<footer class="fixed bottom-0 w-full h-24 bg-slate-950 dark:bg-[#111318] border-t border-[#2ae500]/20 z-50 flex items-center px-6 bg-opacity-95 backdrop-blur-md shadow-[0_-4px_20px_rgba(42,229,0,0.05)]">
+<!-- Playback Controls -->
+<div class="flex items-center gap-4 mr-8 border-r border-white/10 pr-8">
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">fast_rewind</span></button>
+<button class="w-10 h-10 rounded-full border border-primary flex items-center justify-center text-primary bg-primary/5 hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined">play_arrow</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">fast_forward</span></button>
+</div>
+<!-- Timeline Scrubber -->
+<div class="flex-1 flex flex-col gap-2 px-8">
+<div class="flex justify-between font-label text-[9px] text-on-surface-variant uppercase tracking-tighter">
+<span>00:00:00:00</span>
+<span class="text-primary">MISSION_CLOCK // LIVE</span>
+<span>00:14:22:05</span>
+</div>
+<div class="relative w-full h-8 flex items-center">
+<!-- Waveform Simulation -->
+<div class="absolute inset-0 flex items-center justify-around opacity-30 pointer-events-none">
+<div class="w-1 h-3 bg-secondary"></div>
+<div class="w-1 h-5 bg-secondary"></div>
+<div class="w-1 h-2 bg-secondary"></div>
+<div class="w-1 h-4 bg-secondary"></div>
+<div class="w-1 h-6 bg-primary"></div>
+<div class="w-1 h-3 bg-secondary"></div>
+<div class="w-1 h-5 bg-secondary"></div>
+<div class="w-1 h-4 bg-secondary"></div>
+<div class="w-1 h-2 bg-secondary"></div>
+<div class="w-1 h-4 bg-error"></div>
+<div class="w-1 h-3 bg-secondary"></div>
+</div>
+<!-- The Scrubber Line -->
+<div class="w-full h-0.5 bg-surface-container-highest relative">
+<div class="absolute top-1/2 left-[64%] -translate-y-1/2 w-4 h-4 bg-primary flex items-center justify-center shadow-[0_0_10px_#2ae500]">
+<div class="w-1 h-full bg-white/50"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Event Log Snippet -->
+<div class="w-72 flex flex-col gap-1 ml-8 border-l border-white/10 pl-8 overflow-hidden h-16">
+<span class="font-label text-[10px] text-on-surface-variant/50 uppercase">Log_Output</span>
+<div class="space-y-1">
+<div class="flex gap-2 items-center">
+<span class="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label text-[10px] text-primary truncate uppercase">Missile_Launched // Alpha_Site</span>
+</div>
+<div class="flex gap-2 items-center">
+<span class="w-1 h-1 rounded-full bg-secondary"></span>
+<span class="font-label text-[10px] text-secondary truncate uppercase">Interceptor_Fired // Battery_1</span>
+</div>
+<div class="flex gap-2 items-center">
+<span class="w-1 h-1 rounded-full bg-error"></span>
+<span class="font-label text-[10px] text-error truncate uppercase">Target_Destroyed // Sector_01</span>
+</div>
+</div>
+</div>
+<!-- Mobile Navigation Overlay (For responsive intent) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-16 flex justify-around items-center bg-slate-950 border-t border-[#2ae500]/20 px-10">
+<button class="text-[#2ae500] font-bold scale-105 flex flex-col items-center">
+<span class="material-symbols-outlined">timeline</span>
+<span class="text-[10px] uppercase font-label">Timeline</span>
+</button>
+<button class="text-slate-600 hover:text-[#98cbff] flex flex-col items-center">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="text-[10px] uppercase font-label">Logs</span>
+</button>
+<button class="text-slate-600 hover:text-[#98cbff] flex flex-col items-center">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-[10px] uppercase font-label">Stats</span>
+</button>
+</nav>
+</footer>
+</main>
+<!-- Global Interface Overlays (Coordinates etc) -->
+<div class="fixed top-20 right-84 pointer-events-none z-30">
+<div class="font-headline text-[10px] text-primary/40 leading-none text-right">
+            GRID_COORD_X: 42.00192<br/>
+            GRID_COORD_Y: 104.22381<br/>
+            ALTITUDE: 120,491M
+        </div>
+</div>
+<div class="fixed bottom-28 left-8 pointer-events-none z-30">
+<div class="font-headline text-[10px] text-secondary/40 leading-none">
+            ENCRYPTION: AES-256-GCM<br/>
+            STATION: VANGUARD_COMMAND_BASE<br/>
+            LATENCY: 12MS
+        </div>
+</div>
+</body></html>
